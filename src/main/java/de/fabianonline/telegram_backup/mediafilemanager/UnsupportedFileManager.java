@@ -45,8 +45,8 @@ import org.apache.commons.io.FileUtils;
 
 public class UnsupportedFileManager extends AbstractMediaFileManager {
 	String type = null;
-	public UnsupportedFileManager(TLMessage msg, UserManager user, TelegramClient client, String type) {
-		super(msg, user, client);
+	public UnsupportedFileManager(String prefix, TLMessage msg, UserManager user, TelegramClient client, String type) {
+		super(prefix, msg, user, client);
 		this.type = type;
 	}
 

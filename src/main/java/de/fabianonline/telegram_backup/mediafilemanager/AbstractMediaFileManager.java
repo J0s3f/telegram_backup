@@ -47,9 +47,21 @@ public abstract class AbstractMediaFileManager {
 	protected UserManager user;
 	protected TLMessage message;
 	protected TelegramClient client;
+	protected String prefix;
 	protected boolean isEmpty = false;
 	
-	public AbstractMediaFileManager(TLMessage msg, UserManager user, TelegramClient client) {this.user = user; this.message = msg; this.client = client;};
+	public AbstractMediaFileManager(TLMessage msg, UserManager user, TelegramClient client) {
+	    this.user = user;
+	    this.message = msg;
+	    this.client = client;
+	    this.prefix = "";
+	};
+    public AbstractMediaFileManager(String prefix, TLMessage msg, UserManager user, TelegramClient client) {
+        this.user = user;
+        this.message = msg;
+        this.client = client;
+        this.prefix = prefix;
+    };
 	public abstract int getSize();
 	public abstract String getExtension();
 	public boolean isEmpty() { return isEmpty; }
@@ -64,7 +76,7 @@ public abstract class AbstractMediaFileManager {
 		new File(path).mkdirs();
 		return path;
 	}
-	public String getTargetFilename() { return "" + message.getId() + "." + getExtension(); }
+	public String getTargetFilename() { return "" + prefix + message.getId() + "." + getExtension(); }
 	public String getTargetPathAndFilename() { return getTargetPath() + getTargetFilename(); }
 	
 	protected String extensionFromMimetype(String mime) {

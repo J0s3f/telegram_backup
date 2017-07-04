@@ -170,7 +170,9 @@ public class CommandLineController {
 			logger.debug("CommandLineOptions.cmd_no_media: {}", CommandLineOptions.cmd_no_media);
 			if (!CommandLineOptions.cmd_no_media) {
 				logger.debug("Calling DownloadManager.downloadMedia");
-				d.downloadMedia();
+				d.downloadMedia(-1);
+                logger.debug("Calling DownloadManager.downloadChannelMedia");
+                d.downloadSupergroupMedia();
 			} else {
 				System.out.println("Skipping media download because --no-media is set.");
 			}

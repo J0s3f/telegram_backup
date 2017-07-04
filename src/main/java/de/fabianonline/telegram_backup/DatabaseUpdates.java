@@ -32,6 +32,7 @@ public class DatabaseUpdates {
 		register(new DB_Update_5(conn, db));
 		register(new DB_Update_6(conn, db));
 		register(new DB_Update_7(conn, db));
+        register(new DB_Update_8(conn, db));
 	}
 	
 	public void doUpdates() {
@@ -300,4 +301,30 @@ class DB_Update_7 extends DatabaseUpdate {
 		
 		stmt.executeUpdate("UPDATE messages SET api_layer=51");
 	}
+}
+
+class DB_Update_8 extends DatabaseUpdate {
+    public int getVersion() { return 8;}
+    public boolean needsBackup() { return true;}
+    public DB_Update_8(Connection conn, Database db) { super(conn,db);}
+
+    protected void _doUpdate() throws SQLException {
+        stmt.executeUpdate("CREATE TABLE \"channelMessages\" ( " +
+                                " id INTEGER," +
+                                " message_type TEXT," +
+                                " chat_id INTEGER," +
+                                " sender_id INTEGER," +
+                                " fwd_from_id INTEGER," +
+                                " text TEXT," +
+                                " time INTEGER ASC," +
+                                " has_media BOOLEAN," +
+                                " media_type TEXT," +
+                                " media_file TEXT," +
+                                " media_size INTEGER," +
+                                " media_json TEXT," +
+                                " markup_json TEXT," +
+                                " data BLOB," +
+                                " api_layer INTEGER" +
+                                ")");
+    }
 }
