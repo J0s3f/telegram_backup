@@ -16,6 +16,7 @@
 
 package de.fabianonline.telegram_backup;
 
+import com.github.badoualy.telegram.tl.core.TLVector;
 import de.fabianonline.telegram_backup.UserManager;
 import de.fabianonline.telegram_backup.Database;
 import de.fabianonline.telegram_backup.StickerConverter;
@@ -39,10 +40,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.net.URL;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
@@ -93,6 +91,7 @@ public class DownloadManager {
 	
 	public void _downloadMessages(Integer limit) throws RpcErrorException, IOException, TimeoutException {
 		logger.info("This is _downloadMessages with limit {}", limit);
+        Map<Integer,Integer> ChannelMessageCounts = new HashMap<Integer,Integer>();
 		int dialog_limit = 100;
 		logger.info("Downloading the last {} dialogs", dialog_limit);
 		System.out.println("Downloading most recent dialogs... ");
@@ -107,7 +106,9 @@ public class DownloadManager {
 			if (d.getTopMessage() > max_message_id && ! (d.getPeer() instanceof TLPeerChannel)) {
 				logger.trace("Updating top message id: {} => {}. Dialog type: {}", max_message_id, d.getTopMessage(), d.getPeer().getClass().getName());
 				max_message_id = d.getTopMessage();
-			}
+			} else if(d.getPeer() instanceof TLPeerChannel) {
+                ChannelMessageCounts.put(((TLPeerChannel) d.getPeer()).getChannelId(), d.getTopMessage());
+            }
 		}
 		System.out.println("Top message ID is " + max_message_id);
 		int max_database_id = db.getTopMessageID();
@@ -131,7 +132,7 @@ public class DownloadManager {
 		} else {
 			int start_id = max_database_id + 1;
 			int end_id = max_message_id;
-			
+
 			List<Integer> ids = makeIdList(start_id, end_id);
 			downloadMessages(ids);
 		}
@@ -160,10 +161,104 @@ public class DownloadManager {
 				downloadMessages(downloadable_missing_ids);
 			}
 		}
+
+		if(limit == null) {
+            System.out.println("Fetching supergroups...");
+            ArrayList<TLChannel> supergroups = new ArrayList<TLChannel>();
+            for(TLAbsChat c : dialogs.getChats()) {
+                if(c instanceof  TLChannel && ((TLChannel) c).getMegagroup()) {
+                    supergroups.add((TLChannel) c);
+                }
+            }
+
+            for(TLChannel g : supergroups) {
+                TLInputChannel channel = TLAbsInputChannel.newNotEmpty();
+                channel.setChannelId(g.getId());
+                channel.setAccessHash(g.getAccessHash());
+
+                int max_channel_database_id = db.getTopMessageIDForChannel(g.getId());
+                int max_channel_message_id = ChannelMessageCounts.get(g.getId());
+
+                if (max_channel_message_id - max_channel_database_id > 1000000) {
+                    System.out.println("Would have to load more than 1 million messages which is not supported by telegram. Capping the list.");
+                    logger.debug("max_channel_message_id={}, max_channel_database_id={}, difference={}", max_channel_message_id, max_channel_database_id, max_channel_message_id - max_channel_database_id);
+                    max_channel_database_id = Math.max(0, max_channel_message_id - 1000000);
+                    logger.debug("new max_channel_database_id: {}", max_channel_database_id);
+                }
+
+                if (max_channel_database_id == max_channel_message_id) {
+                    System.out.println("No new messages to download.");
+                } else if (max_channel_database_id > max_channel_message_id) {
+                    throw new RuntimeException("max_channel_database_id is bigger then max_channel_message_id. This shouldn't happen. But the telegram api nonetheless does that sometimes. Just ignore this error, wait a few seconds and then try again.");
+                } else {
+
+                    List<Integer> ids = makeIdList(max_channel_database_id + 1, max_channel_message_id);
+                    downloadSupergroupMessages(channel, ids);
+                }
+            }
+        } else {
+		    System.out.println("The whole limit calculation doesn't make sense with supergroups. I'm not fetching any.");
+        }
+
 		
 		logger.info("Logging this run");
 		db.logRun(Math.min(max_database_id + 1, max_message_id), max_message_id, count_missing);
 	}
+
+    private void downloadSupergroupMessages(TLInputChannel channel, List<Integer> ids) throws RpcErrorException, IOException {
+        prog.onMessageDownloadStart(ids.size());
+        boolean has_seen_flood_wait_message = false;
+
+        logger.debug("Entering download loop");
+        while (ids.size()>0) {
+            logger.trace("Loop");
+            TLIntVector vector = new TLIntVector();
+            int download_count = Config.GET_MESSAGES_BATCH_SIZE;
+            logger.trace("download_count: {}", download_count);
+            for (int i=0; i<download_count; i++) {
+                if (ids.size()==0) break;
+                vector.add(ids.remove(0));
+            }
+            logger.trace("vector.size(): {}", vector.size());
+            logger.trace("ids.size(): {}", ids.size());
+
+            TLAbsMessages response;
+            int tries = 0;
+            while(true) {
+                logger.trace("Trying getMessages(), tries={}", tries);
+                if (tries>=5) {
+                    CommandLineController.show_error("Couldn't getMessages after 5 tries. Quitting.");
+                }
+                tries++;
+                try {
+                    response = client.channelsGetMessages(channel, vector);
+                    break;
+                } catch (RpcErrorException e) {
+                    if (e.getCode()==420) { // FLOOD_WAIT
+                        Utils.obeyFloodWaitException(e, has_seen_flood_wait_message);
+                        has_seen_flood_wait_message = true;
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+            logger.trace("response.getMessages().size(): {}", response.getMessages().size());
+            if (response.getMessages().size() != vector.size()) {
+                CommandLineController.show_error("Requested " + vector.size() + " messages, but got " + response.getMessages().size() + ". That is unexpected. Quitting.");
+            }
+            prog.onMessageDownloaded(response.getMessages().size());
+            db.saveChannelMessages(response.getMessages(), Kotlogram.API_LAYER);
+            db.saveChats(response.getChats());
+            db.saveUsers(response.getUsers());
+            logger.trace("Sleeping");
+            try {
+                TimeUnit.MILLISECONDS.sleep(Config.DELAY_AFTER_GET_MESSAGES);
+            } catch (InterruptedException e) {}
+        }
+        logger.debug("Finished.");
+
+        prog.onMessageDownloadFinished();
+    }
 	
 	private void downloadMessages(List<Integer> ids) throws RpcErrorException, IOException {
 		prog.onMessageDownloadStart(ids.size());
@@ -219,14 +314,25 @@ public class DownloadManager {
 		
 		prog.onMessageDownloadFinished();
 	}
+
+	public void downloadSupergroupMedia() throws RpcErrorException, IOException {
+	    LinkedList<Integer> groups = db.getSupergroupChatIds();
+	    for(Integer id : groups) {
+            downloadMedia(id);
+        }
+    }
 	
-	public void downloadMedia() throws RpcErrorException, IOException {
+	public void downloadMedia(Integer channelId) throws RpcErrorException, IOException {
 		download_client = client.getDownloaderClient();
 		boolean completed = true;
 		do {
 			completed = true;
 			try {
-				_downloadMedia();
+			    if(channelId  != -1) {
+                    _downloadChannelMedia(channelId);
+                } else {
+                    _downloadMedia();
+                }
 			} catch (RpcErrorException e) {
 				if (e.getTag().startsWith("420: FLOOD_WAIT_")) {
 					completed = false;
@@ -283,6 +389,49 @@ public class DownloadManager {
 		}
 		prog.onMediaDownloadFinished();
 	}
+
+    private void _downloadChannelMedia(Integer channelId) throws RpcErrorException, IOException, TimeoutException {
+        logger.info("This is _downloadChannelMedia");
+
+        //This would need the Auth key but we don't have that here. Not sure what to do
+        //TODO: This here
+        //Also: Only for this channel ID
+        /*
+        logger.info("Checking if there are messages in the DB with a too old API layer");
+        LinkedList<Integer> ids = db.getIdsFromQuery("SELECT id FROM channelMessages WHERE has_media=1 AND api_layer<" + Kotlogram.API_LAYER);
+        if (ids.size()>0) {
+            System.out.println("You have " + ids.size() + " messages in your db that need an update. Doing that now.");
+            logger.debug("Found {} messages", ids.size());
+            downloadMessages(ids);
+        } */
+
+        LinkedList<TLMessage> messages = this.db.getChannelMessagesWithMedia(channelId);
+        logger.debug("Database returned {} messages with media", messages.size());
+        prog.onMediaDownloadStart(messages.size());
+        for (TLMessage msg : messages) {
+            AbstractMediaFileManager m = FileManagerFactory.getFileManager(channelId.toString()+"c", msg, user, client);
+            logger.trace("message {}, {}, {}, {}, {}",
+                    msg.getId(),
+                    msg.getMedia().getClass().getSimpleName().replace("TLMessageMedia", "…"),
+                    m.getClass().getSimpleName(),
+                    m.isEmpty() ? "empty" : "non-empty",
+                    m.isDownloaded() ? "downloaded" : "not downloaded");
+            if (m.isEmpty()) {
+                prog.onMediaDownloadedEmpty();
+            } else if (m.isDownloaded()) {
+                prog.onMediaAlreadyPresent(m);
+            } else {
+				/*try {*/
+                m.download();
+                prog.onMediaDownloaded(m);
+				/*} catch (TimeoutException e) {
+					// do nothing - skip this file
+					prog.onMediaSkipped();
+				}*/
+            }
+        }
+        prog.onMediaDownloadFinished();
+    }
 	
 	private List<Integer> makeIdList(int start, int end) {
 		LinkedList<Integer> a = new LinkedList<Integer>();

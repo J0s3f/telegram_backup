@@ -46,8 +46,8 @@ public class DocumentFileManager extends AbstractMediaFileManager {
 	protected TLDocument doc;
 	private String extension = null;
 	
-	public DocumentFileManager(TLMessage msg, UserManager user, TelegramClient client) {
-		super(msg, user, client);
+	public DocumentFileManager(String prefix, TLMessage msg, UserManager user, TelegramClient client) {
+		super(prefix, msg, user, client);
 		TLAbsDocument d = ((TLMessageMediaDocument)msg.getMedia()).getDocument();
 		if (d instanceof TLDocument) {
 			this.doc = (TLDocument)d;

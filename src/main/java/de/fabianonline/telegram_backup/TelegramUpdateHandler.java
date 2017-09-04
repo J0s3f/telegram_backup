@@ -130,6 +130,7 @@ class TelegramUpdateHandler implements UpdateCallback {
 	public void onUpdateTooLong(TelegramClient c) { if (db==null) return; System.out.println("onUpdateTooLong"); }
 	
 	private void processUpdate(TLAbsUpdate update, TelegramClient client) {
+		//TODO: Supergroups!!
 		if (update instanceof TLUpdateNewMessage) {
 			TLAbsMessage abs_msg = ((TLUpdateNewMessage)update).getMessage();
 			TLVector<TLAbsMessage> vector = new TLVector<TLAbsMessage>(TLAbsMessage.class);
@@ -137,7 +138,7 @@ class TelegramUpdateHandler implements UpdateCallback {
 			db.saveMessages(vector, Kotlogram.API_LAYER);
 			System.out.print('.');
 			if (abs_msg instanceof TLMessage) {
-				AbstractMediaFileManager fm = FileManagerFactory.getFileManager((TLMessage)abs_msg, user, client);
+				AbstractMediaFileManager fm = FileManagerFactory.getFileManager((TLMessage)abs_msg, user, client); //TODO: Supergroups?
 				if (fm != null && !fm.isEmpty() && !fm.isDownloaded()) {
 					try {
 						fm.download();

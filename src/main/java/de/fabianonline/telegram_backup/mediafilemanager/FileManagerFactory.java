@@ -43,30 +43,35 @@ import org.apache.commons.io.FileUtils;
 
 public class FileManagerFactory {
 	public static AbstractMediaFileManager getFileManager(TLMessage m, UserManager u, TelegramClient c) {
+		return getFileManager("", m, u, c);
+	}
+
+
+	public static AbstractMediaFileManager getFileManager(String p, TLMessage m, UserManager u, TelegramClient c) {
 		if (m==null) return null;
 		TLAbsMessageMedia media = m.getMedia();
 		if (media==null) return null;
 		
 		if (media instanceof TLMessageMediaPhoto) {
-			return new PhotoFileManager(m, u, c);
+			return new PhotoFileManager(p, m, u, c);
 		} else if (media instanceof TLMessageMediaDocument) {
-			DocumentFileManager d = new DocumentFileManager(m, u, c);
+			DocumentFileManager d = new DocumentFileManager(p, m, u, c);
 			if (d.isSticker()) {
-				return new StickerFileManager(m, u, c);
+				return new StickerFileManager(p, m, u, c);
 			}
 			return d;
 		} else if (media instanceof TLMessageMediaGeo) {
-			return new GeoFileManager(m, u, c);
+			return new GeoFileManager(p, m, u, c);
 		} else if (media instanceof TLMessageMediaEmpty) {
-			return new UnsupportedFileManager(m, u, c, "empty");
+			return new UnsupportedFileManager(p, m, u, c, "empty");
 		} else if (media instanceof TLMessageMediaUnsupported) {
-			return new UnsupportedFileManager(m, u, c, "unsupported");
+			return new UnsupportedFileManager(p, m, u, c, "unsupported");
 		} else if (media instanceof TLMessageMediaWebPage) {
-			return new UnsupportedFileManager(m, u, c, "webpage");
+			return new UnsupportedFileManager(p, m, u, c, "webpage");
 		} else if (media instanceof TLMessageMediaContact) {
-			return new UnsupportedFileManager(m, u, c, "contact");
+			return new UnsupportedFileManager(p, m, u, c, "contact");
 		} else if (media instanceof TLMessageMediaVenue) {
-			return new UnsupportedFileManager(m, u, c, "venue");
+			return new UnsupportedFileManager(p, m, u, c, "venue");
 		} else {
 			AbstractMediaFileManager.throwUnexpectedObjectError(media);
 		}

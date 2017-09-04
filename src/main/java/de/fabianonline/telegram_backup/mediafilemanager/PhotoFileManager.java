@@ -45,8 +45,8 @@ import org.apache.commons.io.FileUtils;
 public class PhotoFileManager extends AbstractMediaFileManager {
 	private TLPhoto photo;
 	private TLPhotoSize size = null;
-	public PhotoFileManager(TLMessage msg, UserManager user, TelegramClient client) {
-		super(msg, user, client);
+	public PhotoFileManager(String prefix, TLMessage msg, UserManager user, TelegramClient client) {
+		super(prefix, msg, user, client);
 		TLAbsPhoto p = ((TLMessageMediaPhoto)msg.getMedia()).getPhoto();
 		if (p instanceof TLPhoto) {
 			this.photo = (TLPhoto)p;

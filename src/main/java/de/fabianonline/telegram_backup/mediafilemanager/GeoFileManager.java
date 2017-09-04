@@ -46,8 +46,8 @@ import org.apache.commons.io.FileUtils;
 public class GeoFileManager extends AbstractMediaFileManager {
 	protected TLGeoPoint geo;
 	
-	public GeoFileManager(TLMessage msg, UserManager user, TelegramClient client) {
-		super(msg, user, client);
+	public GeoFileManager(String prefix, TLMessage msg, UserManager user, TelegramClient client) {
+		super(prefix, msg, user, client);
 		TLAbsGeoPoint g = ((TLMessageMediaGeo)msg.getMedia()).getGeo();
 		if (g instanceof TLGeoPoint) {
 			this.geo = (TLGeoPoint) g;

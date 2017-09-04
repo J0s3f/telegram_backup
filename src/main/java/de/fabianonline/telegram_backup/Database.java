@@ -116,6 +116,16 @@ public class Database {
 			return 0;
 		}
 	}
+
+    public int getTopMessageIDForChannel(int id) {
+        try {
+            ResultSet rs = stmt.executeQuery("SELECT MAX(id) FROM channelMessages WHERE chat_id = \"" + id + "\"");
+            rs.next();
+            return rs.getInt(1);
+        } catch (SQLException e) {
+            return 0;
+        }
+    }
 	
 	public void logRun(int start_id, int end_id, int count) {
 		try {
@@ -139,7 +149,7 @@ public class Database {
 			throw new RuntimeException("Could not get count of messages.");
 		}
 	}
-	
+	//TODO: Get Missing IDs for Channels
 	public LinkedList<Integer> getMissingIDs() {
 		try {
 			LinkedList<Integer> missing = new LinkedList<Integer>();
@@ -282,6 +292,113 @@ public class Database {
 		}
 	}
 
+    public synchronized void saveChannelMessages(TLVector<TLAbsMessage> all, Integer api_layer) {
+        try {
+
+            String columns =
+                    "(id, message_type, chat_id, sender_id, fwd_from_id, text, time, has_media, media_type, media_file, media_size, data, api_layer) "+
+                    "VALUES " +
+                    "(?,  ?,         ?,       ?,         ?,           ?,    ?,    ?,         ?,          ?,          ?,          ?,    ?)";
+            //        1   2         3          4        5          6            7     8     9          10          11          12          13    14
+            PreparedStatement ps = conn.prepareStatement("INSERT OR REPLACE INTO channelMessages " + columns);
+            PreparedStatement ps_insert_or_ignore = conn.prepareStatement("INSERT OR IGNORE INTO channelMessages " + columns);
+
+            for (TLAbsMessage abs : all) {
+                if (abs instanceof TLMessage) {
+                    TLMessage msg = (TLMessage) abs;
+                    ps.setInt(1, msg.getId());
+                    ps.setString(2, "message");
+                    TLAbsPeer peer = msg.getToId();
+                    Integer ChannelID;
+                    if (peer instanceof TLPeerChannel) {
+                        ChannelID = ((TLPeerChannel)peer).getChannelId();
+                        ps.setInt(3, ChannelID);
+                    } else {
+                        //TODO: Non group channels?
+                        throw new RuntimeException("Unexpected Peer type: " + peer.getClass().getName());
+                    }
+                    ps.setInt(4, msg.getFromId());
+
+                    if (msg.getFwdFrom() != null && msg.getFwdFrom().getFromId() != null) {
+                        ps.setInt(5, msg.getFwdFrom().getFromId());
+                    } else {
+                        ps.setNull(5, Types.INTEGER);
+                    }
+
+                    String text = msg.getMessage();
+                    if ((text==null || text.equals("")) && msg.getMedia()!=null) {
+                        if (msg.getMedia() instanceof TLMessageMediaDocument) {
+                            text = ((TLMessageMediaDocument)msg.getMedia()).getCaption();
+                        } else if (msg.getMedia() instanceof TLMessageMediaPhoto) {
+                            text = ((TLMessageMediaPhoto)msg.getMedia()).getCaption();
+                        }
+                    }
+                    ps.setString(6, text);
+                    ps.setString(7, ""+msg.getDate());
+                    AbstractMediaFileManager f = FileManagerFactory.getFileManager(ChannelID.toString(), msg, user_manager, client);
+                    if (f==null) {
+                        ps.setNull(8, Types.BOOLEAN);
+                        ps.setNull(9, Types.VARCHAR);
+                        ps.setNull(10, Types.VARCHAR);
+                        ps.setNull(11, Types.INTEGER);
+                    } else {
+                        ps.setBoolean(8, true);
+                        ps.setString(9, f.getName());
+                        ps.setString(10, f.getTargetFilename());
+                        ps.setInt(11, f.getSize());
+                    }
+                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                    msg.serializeBody(stream);
+                    ps.setBytes(12, stream.toByteArray());
+                    ps.setInt(13, api_layer);
+                    ps.addBatch();
+                } else if (abs instanceof TLMessageService) {
+                    ps_insert_or_ignore.setInt(1, abs.getId());
+                    ps_insert_or_ignore.setString(2, "service_message");
+                    ps_insert_or_ignore.setNull(3, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(4, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(5, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(6, Types.VARCHAR);
+                    ps_insert_or_ignore.setNull(7, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(8, Types.BOOLEAN);
+                    ps_insert_or_ignore.setNull(9, Types.VARCHAR);
+                    ps_insert_or_ignore.setNull(10, Types.VARCHAR);
+                    ps_insert_or_ignore.setNull(11, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(12, Types.BLOB);
+                    ps_insert_or_ignore.setInt(13, api_layer);
+                    ps_insert_or_ignore.addBatch();
+                } else if (abs instanceof TLMessageEmpty) {
+                    ps_insert_or_ignore.setInt(1, abs.getId());
+                    ps_insert_or_ignore.setString(2, "empty_message");
+                    ps_insert_or_ignore.setNull(3, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(4, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(5, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(6, Types.VARCHAR);
+                    ps_insert_or_ignore.setNull(7, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(8, Types.BOOLEAN);
+                    ps_insert_or_ignore.setNull(9, Types.VARCHAR);
+                    ps_insert_or_ignore.setNull(10, Types.VARCHAR);
+                    ps_insert_or_ignore.setNull(11, Types.INTEGER);
+                    ps_insert_or_ignore.setNull(12, Types.BLOB);
+                    ps_insert_or_ignore.setInt(13, api_layer);
+                    ps_insert_or_ignore.addBatch();
+                } else {
+                    throw new RuntimeException("Unexpected Message type: " + abs.getClass().getName());
+                }
+            }
+            conn.setAutoCommit(false);
+            ps.executeBatch();
+            ps.clearBatch();
+            ps_insert_or_ignore.executeBatch();
+            ps_insert_or_ignore.clearBatch();
+            conn.commit();
+            conn.setAutoCommit(true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Exception shown above happened.");
+        }
+    }
+
 	public synchronized void saveChats(TLVector<TLAbsChat> all) {
 		try {
 			PreparedStatement ps_insert_or_replace = conn.prepareStatement(
@@ -316,7 +433,11 @@ public class Database {
 					ps_insert_or_replace.addBatch();
 				} else if (abs instanceof TLChannel) {
 					ps_insert_or_replace.setString(2, ((TLChannel)abs).getTitle());
-					ps_insert_or_replace.setString(3, "channel");
+					if(((TLChannel) abs).getMegagroup()) {
+                        ps_insert_or_replace.setString(3, "megagroup");
+                    } else {
+                        ps_insert_or_replace.setString(3, "channel");
+                    }
 					ps_insert_or_replace.addBatch();
 				} else {
 					throw new RuntimeException("Unexpected " + abs.getClass().getName());
@@ -383,19 +504,49 @@ public class Database {
 	}
 	
 	public LinkedList<TLMessage> getMessagesWithMedia() {
-		try {
-			LinkedList<TLMessage> list = new LinkedList<TLMessage>();
-			ResultSet rs = stmt.executeQuery("SELECT data FROM messages WHERE has_media=1");
-			while (rs.next()) {
-				list.add(bytesToTLMessage(rs.getBytes(1)));
-			}
-			rs.close();
-			return list;
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeException("Exception occured. See above.");
-		}
-	}
+        try {
+            LinkedList<TLMessage> list = new LinkedList<TLMessage>();
+            ResultSet rs = stmt.executeQuery("SELECT data FROM messages WHERE has_media=1");
+            while (rs.next()) {
+                list.add(bytesToTLMessage(rs.getBytes(1)));
+            }
+            rs.close();
+            return list;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Exception occured. See above.");
+        }
+    }
+
+    public LinkedList<TLMessage> getChannelMessagesWithMedia(int id) {
+        try {
+            LinkedList<TLMessage> list = new LinkedList<TLMessage>();
+            ResultSet rs = stmt.executeQuery("SELECT data FROM channelMessages WHERE has_media=1 AND chat_id = \""+ id + "\"");
+            while (rs.next()) {
+                list.add(bytesToTLMessage(rs.getBytes(1)));
+            }
+            rs.close();
+            return list;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Exception occured. See above.");
+        }
+    }
+
+    public LinkedList<Integer> getSupergroupChatIds() {
+	    try {
+            LinkedList<Integer> list = new LinkedList<Integer>();
+            ResultSet rs = stmt.executeQuery("SELECT id FROM chats WHERE type=\"megagroup\"");
+            while(rs.next()) {
+                list.add(rs.getInt(1));
+            }
+            rs.close();
+            return list;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Exception occured. See above.");
+        }
+    }
 	
 	public int getMessagesFromUserCount() {
 		try {

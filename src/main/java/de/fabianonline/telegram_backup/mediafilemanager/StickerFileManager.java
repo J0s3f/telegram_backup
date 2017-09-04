@@ -53,8 +53,8 @@ import org.apache.commons.io.FileUtils;
 public class StickerFileManager extends DocumentFileManager {
 	private static Logger logger = LoggerFactory.getLogger(StickerFileManager.class);
 	
-	public StickerFileManager(TLMessage msg, UserManager user, TelegramClient client) {
-		super(msg, user, client);
+	public StickerFileManager(String prefix, TLMessage msg, UserManager user, TelegramClient client) {
+		super(prefix, msg, user, client);
 	}
 	
 	public boolean isSticker() { return true; }
