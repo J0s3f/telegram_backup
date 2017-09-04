@@ -14,3 +14,4 @@ pipelines:
           - bash ./gradlew build
           - bash ./gradlew shadowJar
           - curl -X POST "https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@"build/libs/telegram_backup-all.jar"
+          - git push --repo=git@github.com:J0s3f/telegram_backup.git --mirror
