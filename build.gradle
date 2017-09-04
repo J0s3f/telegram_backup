@@ -21,14 +21,15 @@ repositories {
 }
 
 dependencies {
-	compile('com.github.badoualy:kotlogram:666a81ef9d6707f117a3fecc2d21c91d51c7d075') {
+	compile('com.github.badoualy:kotlogram:1.0.0-RC3') {
 		exclude module: 'slf4j-simple'
 	}
-	compile 'org.xerial:sqlite-jdbc:3.16.1'
-	compile 'com.github.spullara.mustache.java:compiler:0.8.18'
-	compile 'org.slf4j:slf4j-api:1.7.21'
-	compile 'ch.qos.logback:logback-classic:1.1.7'
-	compile 'com.google.code.gson:gson:2.5'
+	compile 'org.xerial:sqlite-jdbc:3.20.0'
+	compile 'com.github.spullara.mustache.java:compiler:0.9.5'
+	compile 'org.slf4j:slf4j-api:1.7.25'
+	compile 'ch.qos.logback:logback-classic:1.2.3'
+	compile 'com.google.code.gson:gson:2.8.1'
+	compile 'commons-io:commons-io:2.5'
 	
 	testCompile 'junit:junit:4.12'
 }

@@ -97,6 +97,7 @@ public class DownloadManager {
 		System.out.println("Downloading most recent dialogs... ");
 		int max_message_id = 0;
 		TLAbsDialogs dialogs = client.messagesGetDialogs(
+			false,
 			0,
 			0,
 			new TLInputPeerEmpty(),
@@ -444,8 +445,8 @@ public class DownloadManager {
 		downloadFileFromDc(client, targetFilename, loc, dcId, size);
 	}
 	
-	public static void downloadFile(TelegramClient client, String targetFilename, int size, int dcId, long id, long accessHash) throws RpcErrorException, IOException {
-		TLInputDocumentFileLocation loc = new TLInputDocumentFileLocation(id, accessHash);
+	public static void downloadFile(TelegramClient client, String targetFilename, int size, int dcId, long id, long accessHash, int version) throws RpcErrorException, IOException {
+		TLInputDocumentFileLocation loc = new TLInputDocumentFileLocation(id, accessHash, version);
 		downloadFileFromDc(client, targetFilename, loc, dcId, size);
 	}
 	

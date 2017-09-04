@@ -102,7 +102,7 @@ public class DocumentFileManager extends AbstractMediaFileManager {
 	
 	public void download() throws RpcErrorException, IOException {
 		if (doc!=null) {
-			DownloadManager.downloadFile(client, getTargetPathAndFilename(), getSize(), doc.getDcId(), doc.getId(), doc.getAccessHash());
+			DownloadManager.downloadFile(client, getTargetPathAndFilename(), getSize(), doc.getDcId(), doc.getId(), doc.getAccessHash(), doc.getVersion());
 		}
 	}
 	
