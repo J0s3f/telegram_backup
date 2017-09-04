@@ -16,36 +16,25 @@
 
 package de.fabianonline.telegram_backup;
 
+import com.github.badoualy.telegram.api.TelegramClient;
 import com.github.badoualy.telegram.tl.api.*;
 import com.github.badoualy.telegram.tl.core.TLVector;
-import com.github.badoualy.telegram.api.TelegramClient;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
-import java.sql.SQLException;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.PreparedStatement;
-import java.sql.Types;
-import java.sql.Time;
-import java.io.File;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.LinkedHashMap;
-import java.util.HashMap;
-import java.util.Date;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.FileAlreadyExistsException;
-import java.text.SimpleDateFormat;
-
 import de.fabianonline.telegram_backup.mediafilemanager.AbstractMediaFileManager;
 import de.fabianonline.telegram_backup.mediafilemanager.FileManagerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.sql.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
 
 public class Database {
 	private Connection conn;
@@ -508,8 +497,13 @@ public class Database {
             LinkedList<TLMessage> list = new LinkedList<TLMessage>();
             ResultSet rs = stmt.executeQuery("SELECT data FROM messages WHERE has_media=1");
             while (rs.next()) {
-                list.add(bytesToTLMessage(rs.getBytes(1)));
-            }
+				try {
+					list.add(bytesToTLMessage(rs.getBytes(1)));
+				} catch (RuntimeException e) {
+					//TODO: proper fix for deserialization problems
+					logger.warn("Couldn't deserialize message with media, skipping!", e);
+				}
+			}
             rs.close();
             return list;
         } catch (Exception e) {
