@@ -1,7 +1,17 @@
 apply plugin: 'java'
 apply plugin: 'application'
+apply plugin: 'com.github.johnrengelman.shadow'
 
 mainClassName= 'de.fabianonline.telegram_backup.CommandLineRunner'
+
+buildscript {
+	repositories {
+		jcenter()
+	}
+	dependencies {
+		classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
+	}
+}
 
 repositories {
 	mavenCentral()
@@ -38,6 +48,8 @@ def getVersionName= { ->
 	return version
 }
 
+mkdir("$project.rootDir/build/resources/main/")
+ant.touch(file: "$project.rootDir/build/resources/main/build.properties")
 ant.propertyfile(file: "$project.rootDir/build/resources/main/build.properties") {
 	entry(key: "version", value: getVersionName())
 }
@@ -45,10 +57,6 @@ ant.propertyfile(file: "$project.rootDir/build/resources/main/build.properties")
 jar {
 	manifest {
 		attributes "Main-Class": "$mainClassName"
-	}
-	
-	from {
-		configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
 	}
 	
 	includes [
