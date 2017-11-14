@@ -473,7 +473,7 @@ public class DownloadManager {
 			boolean try_again;
 			do {
 				try_again = false;
-				int block_size = 1073741824;
+				int block_size = 1048576;
 				logger.trace("offset: {} block_size: {} size: {}", offset, block_size, size);
 				TLRequestUploadGetFile req = new TLRequestUploadGetFile(loc, offset, block_size);
 				try {
