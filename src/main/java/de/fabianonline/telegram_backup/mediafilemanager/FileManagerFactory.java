@@ -72,6 +72,8 @@ public class FileManagerFactory {
 			return new UnsupportedFileManager(p, m, u, c, "contact");
 		} else if (media instanceof TLMessageMediaVenue) {
 			return new UnsupportedFileManager(p, m, u, c, "venue");
+		} else if (media instanceof TLMessageMediaGame) {
+			return new UnsupportedFileManager(p, m, u, c, "game");
 		} else {
 			AbstractMediaFileManager.throwUnexpectedObjectError(media);
 		}
