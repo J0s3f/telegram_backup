@@ -112,7 +112,7 @@ public class CommandLineController {
 		logger.info("Initializing TelegramUpdateHandler");
 		TelegramUpdateHandler handler = new TelegramUpdateHandler();
 		logger.info("Creating Client");
-		TelegramClient client = Kotlogram.getDefaultClient(app, storage, Kotlogram.PROD_DC4, handler);
+		TelegramClient client = Kotlogram.getDefaultClient(app, storage, handler, Kotlogram.PROD_DC4);
 		
 		try {
 			logger.info("Creating UserManager");
