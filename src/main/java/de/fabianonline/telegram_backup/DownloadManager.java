@@ -335,7 +335,7 @@ public class DownloadManager {
                     _downloadMedia();
                 }
 			} catch (RpcErrorException e) {
-				if (e.getTag().startsWith("420: FLOOD_WAIT_")) {
+				if (e.getTag().startsWith("420: FLOOD_WAIT_") || (e.getCode() == 420 && e.getTag().startsWith("FLOOD_WAIT_"))) {
 					completed = false;
 					Utils.obeyFloodWaitException(e);
 				} else {
@@ -483,7 +483,7 @@ public class DownloadManager {
 						response = (TLFile) download_client.executeRpcQuery(req, dcID);
 					}
 				} catch (RpcErrorException e) {
-					if (e.getTag().startsWith("420: FLOOD_WAIT_")) {
+					if (e.getTag().startsWith("420: FLOOD_WAIT_") || (e.getCode() == 420 && e.getTag().startsWith("FLOOD_WAIT_"))) {
 						try_again = true;
 						Utils.obeyFloodWaitException(e);
 					} else if (e.getCode()==400) {
